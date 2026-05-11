@@ -1,6 +1,7 @@
 mod analyzer;
 mod config;
 mod launcher;
+mod mcp;
 mod providers;
 mod selector;
 mod setup;
@@ -154,6 +155,9 @@ enum Commands {
 
     /// Detect available tools on the system
     Detect,
+
+    /// Run as MCP server (for Claude Code slash commands)
+    McpServer,
 }
 
 fn main() {
@@ -193,6 +197,8 @@ fn main() {
         Commands::Providers { provider } => cmd_providers(provider),
 
         Commands::Detect => cmd_detect(),
+
+        Commands::McpServer => cmd_mcp_server(),
     }
 }
 
@@ -791,6 +797,18 @@ fn cmd_detect() {
             else { format!("not found (looking for '{}')", tool.binary_name()).dimmed() });
     }
     println!();
+}
+
+// ─── MCP Server ───────────────────────────────────────────────────────────────
+
+fn cmd_mcp_server() {
+    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+    rt.block_on(async {
+        if let Err(e) = mcp::run_server().await {
+            eprintln!("MCP server error: {}", e);
+            std::process::exit(1);
+        }
+    });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

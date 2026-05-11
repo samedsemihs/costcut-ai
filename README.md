@@ -4,6 +4,16 @@
 
 **costcut** automatically picks the best model for each request. It analyzes your prompt's complexity, checks which models you have API keys for, and selects the optimal one — balancing capability and cost. No manual switching. No fixed aliases. Just type `claude -p "fix the bug"` and costcut does the rest.
 
+## Two Integration Modes
+
+### 1. Shell Wrapper Mode (Transparent)
+Intercepts `claude`, `opencode`, or `pi` commands at the shell level — you don't change how you work.
+
+### 2. MCP Server Mode (In-REPL)
+Run `/costcut` slash commands directly inside Claude Code or OpenCode REPL for on-demand model recommendations.
+
+---
+
 ## How it works
 
 ```
@@ -13,7 +23,7 @@ claude -p "refactor      claude() function        analyze prompt →
   auth across 15          intercepts call          complexity: 59% HIGH
   microservices"          calls: costcut exec      select: deepseek-v4-pro
                           --tool claude            set env vars → exec claude
-                           
+
 Result: DeepSeek-V4-Pro handles the complex refactor. You save ~10x vs Sonnet.
 ```
 
@@ -51,12 +61,28 @@ costcut scores your prompt on 7 dimensions:
 | `free-first` | Prefer free models when possible, fallback to cheapest paid |
 | `best-quality` | Haiku for low, Sonnet for medium, Opus for high/extreme — cost ignored |
 
+---
+
+## Supported CLI Tools
+
+costcut integrates with the following AI coding assistants:
+
+| Tool | Description | Binary | Website |
+|------|-------------|--------|---------|
+| **Claude Code** | Anthropic's official CLI for Claude | `claude` | [claude.ai/code](https://claude.ai/code) |
+| **OpenCode** | Open-source AI coding assistant | `opencode` | [opencode.ai](https://opencode.ai) |
+| **Pi** | Inflection AI's coding assistant | `pi` | [pi.ai](https://pi.ai) |
+
+All three tools support the Anthropic API format, allowing costcut to seamlessly switch between providers (Anthropic, DeepSeek, etc.) by setting environment variables before launch.
+
+---
+
 ## Quick start
 
 ### Prerequisites
 
 - [Rust](https://rustup.rs) toolchain
-- At least one of: [Claude Code](https://www.anthropic.com/claude-code), [OpenCode](https://opencode.ai), or Pi
+- At least one of: Claude Code, OpenCode, or Pi
 
 ```bash
 # Build and install
@@ -103,6 +129,108 @@ claude
 # → interactive REPL, passes through to real claude
 ```
 
+---
+
+## MCP Server Integration
+
+costcut can run as an MCP (Model Context Protocol) server, exposing slash commands directly inside Claude Code or OpenCode REPL. This lets you get model recommendations without leaving your coding session.
+
+### Setup MCP Server
+
+```bash
+# Option 1: Register with Claude Code CLI
+claude mcp add costcut -- costcut mcp-server
+
+# Option 2: Add to your project's .mcp.json
+{
+  "mcpServers": {
+    "costcut": {
+      "type": "stdio",
+      "command": "costcut",
+      "args": ["mcp-server"]
+    }
+  }
+}
+
+# Option 3: Add to global Claude Code config (~/.claude.json)
+```
+
+### Available MCP Tools
+
+Once registered, use these tools inside the REPL:
+
+| Tool | Description | Example |
+|------|-------------|---------|
+| `status` | Show current config, strategy, available models | `/mcp__costcut__status` |
+| `recommend_model` | Analyze a task and get model recommendation | `/mcp__costcut__recommend_model "refactor auth"` |
+| `switch_instructions` | Get instructions to switch to a specific model | `/mcp__costcut__switch_instructions deepseek-v4-pro` |
+
+### Example MCP Usage
+
+```
+You: /mcp__costcut__status
+
+=== Costcut Status ===
+
+Strategy: cost-conscious (balance cost and quality)
+
+Configured Providers:
+  ✓ anthropic
+  ✓ deepseek
+
+Available Models:
+  claude-sonnet-4-5-20250929 $3.00/M in 200K ctx — anthropic
+  deepseek-v4-pro $0.27/M in 128K ctx — deepseek
+  deepseek-v4-flash $0.07/M in 128K ctx — deepseek
+
+Shell wrappers: active
+```
+
+```
+You: /mcp__costcut__recommend_model "refactor the authentication system to use OAuth2 PKCE"
+
+=== Request Analysis ===
+
+Complexity: 45% — Medium
+Tokens: ~15
+Use cases: refactor, coding
+
+Factor Breakdown:
+     prompt_length: [██░░░░░░░░] 15% 67 chars (~15 tokens)
+   task_complexity: [██████░░░░] 60% Detected: refactor, coding
+   ...
+
+=== Recommendation ===
+
+Model: DeepSeek/deepseek-v4-pro
+Provider: deepseek
+Tier: paid
+Est. cost: $0.000004 input + $0.000016 output
+
+Why:
+  • Matches 2/2 detected use cases (refactor, coding)
+  • Cost-effective ($0.27/M input)
+  • Main model for medium complexity
+```
+
+```
+You: /mcp__costcut__switch_instructions deepseek-v4-pro
+
+To switch to DeepSeek/deepseek-v4-pro:
+
+  Run: /model deepseek-v4-pro
+
+Note: costcut cannot change Claude Code's model programmatically.
+The /model command must be run manually.
+
+Model Info:
+  Provider: deepseek
+  Context: 128K tokens
+  Cost: $0.27/M input | $1.10/M output
+```
+
+---
+
 ## Commands
 
 | Command | Description |
@@ -121,6 +249,9 @@ claude
 | `costcut unban <model>` | Re-enable a banned model |
 | `costcut providers [<id>]` | List provider catalog |
 | `costcut detect` | Check which tools are available on PATH |
+| `costcut mcp-server` | Run as MCP server (for Claude Code slash commands) |
+
+---
 
 ## Configuration
 
@@ -163,6 +294,8 @@ free = true
 use_cases = ["coding-fast", "refactor"]
 ```
 
+---
+
 ## Model lineup
 
 costcut selects from every model you have API access to. With both Anthropic and DeepSeek keys configured, the full pool is:
@@ -184,7 +317,11 @@ costcut selects from every model you have API access to. With both Anthropic and
 | 55–80% | High | `deepseek-v4-pro` or `claude-sonnet-4-5` | `claude-sonnet-4-5` |
 | 80–100% | Extreme | `claude-sonnet-4-5` or `claude-opus-4-7` | `claude-opus-4-7` |
 
+### Additional providers
+
 Also available: Z.ai (free), MiniMax (trial), Moonshot, OpenRouter. Add keys with `costcut add-credential <provider>`.
+
+---
 
 ## Example: complexity scoring in action
 
@@ -212,11 +349,14 @@ Complexity: 82% — Extreme
 → Recommends: claude-opus-4-7 (maximum reasoning capability)
 ```
 
+---
+
 ## Architecture
 
 ```
 src/
-├── main.rs          # CLI entry point (clap)
+├── main.rs          # CLI entry point (clap) — 15 commands
+├── mcp.rs           # MCP server for in-REPL slash commands
 ├── setup.rs         # Shell wrapper injection/removal
 ├── analyzer.rs      # Prompt complexity scoring (7-factor analysis)
 ├── selector.rs      # Model selection algorithm (scoring + ranking)
@@ -224,6 +364,39 @@ src/
 ├── providers.rs     # Built-in provider/model catalog
 └── launcher.rs      # Tool integration (Claude Code, OpenCode, Pi)
 ```
+
+### Module responsibilities
+
+| Module | Purpose |
+|--------|---------|
+| `main.rs` | CLI dispatcher, command handlers, user interaction |
+| `mcp.rs` | MCP server with `status`, `recommend_model`, `switch_instructions` tools |
+| `analyzer.rs` | 7-factor complexity scoring, returns `AnalysisResult` |
+| `selector.rs` | Model ranking based on strategy, complexity, use-cases |
+| `config.rs` | TOML config loading/saving, credential management |
+| `providers.rs` | Hardcoded provider/model catalog with pricing |
+| `setup.rs` | Shell wrapper generation and rc file injection |
+| `launcher.rs` | Environment setup and tool binary execution |
+
+---
+
+## Environment Variables
+
+costcut sets these environment variables when launching tools:
+
+| Variable | Purpose |
+|----------|---------|
+| `ANTHROPIC_MODEL` | Selected model ID |
+| `ANTHROPIC_AUTH_TOKEN` | API key for the selected provider |
+| `ANTHROPIC_BASE_URL` | API endpoint (for non-Anthropic providers) |
+| `OPENAI_API_KEY` | Set for OpenRouter compatibility |
+| `OPENAI_BASE_URL` | Set for OpenRouter compatibility |
+
+costcut also reads:
+- `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` — Auto-detect Anthropic credentials
+- `SHELL` / `ZSH_VERSION` — Detect shell for rc file selection
+
+---
 
 ## License
 

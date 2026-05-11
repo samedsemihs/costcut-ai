@@ -1,1 +1,8 @@
 /target
+
+# AI assistant files
+.claude/
+CLAUDE.md
+.cursor/
+.cursorrules
+.github/copilot-instructions.md

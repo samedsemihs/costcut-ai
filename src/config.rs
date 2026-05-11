@@ -261,7 +261,7 @@ impl Default for WitcherConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AvailableModel {
     pub id: String,
     pub provider_id: String,

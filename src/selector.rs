@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::analyzer::{AnalysisResult, ComplexityTier};
 use crate::config::{AvailableModel, Strategy, WitcherConfig};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub struct SelectionResult {
     pub model: AvailableModel,

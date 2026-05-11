@@ -19,3 +19,7 @@ hex = "0.4"
 sha2 = "0.10"
 rand = "0.8"
 which = "6.0"
+rmcp = { version = "0.1", features = ["server", "transport-io", "macros"] }
+schemars = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

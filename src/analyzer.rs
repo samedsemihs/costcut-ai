@@ -3,7 +3,9 @@
 /// Scores a user prompt on multiple dimensions to determine
 /// which model tier is appropriate.
 
-#[derive(Debug, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisResult {
     /// Overall complexity score 0.0–1.0
     pub complexity_score: f64,
@@ -27,7 +29,7 @@ pub struct AnalysisResult {
     pub min_context_needed: u64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ComplexityTier {
     Low,
     Medium,
@@ -58,7 +60,7 @@ impl ComplexityTier {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoreFactor {
     pub name: String,
     pub score: f64,
